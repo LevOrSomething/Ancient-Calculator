@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Ancient Cost Calculator</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #1e1e1e;
+      color: #ffffff;
+      font-family: Arial, sans-serif;
+      position: relative;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 40px;
+    }
+    .card {
+      background: #2a2a2a;
+      padding: 24px 28px;
+      border-radius: 8px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    }
+    .output-card {
+      margin-top: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-top: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .help {
+      cursor: pointer;
+      background: #444;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+    }
+    label {
+      display: block;
+      margin-top: 12px;
+      font-size: 0.95em;
+    }
+    input, select {
+      margin-top: 4px;
+      width: 100%;
+      padding: 6px;
+      background: #1e1e1e;
+      color: #fff;
+      border: 1px solid #555;
+      border-radius: 4px;
+    }
+    input[type=checkbox] { width: auto; margin-right: 6px; }
+    button {
+      margin-top: 20px;
+      width: 100%;
+      padding: 10px;
+      background: #4caf50;
+      border: none;
+      color: #fff;
+      font-size: 1em;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover { background: #43a047; }
+    #output { line-height: 1.5; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: #2a2a2a;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 400px;
+      text-align: center;
+    }
+    .footer {
+      position: fixed;
+      bottom: 10px;
+      right: 14px;
+      font-size: 0.8em;
+      color: #bbb;
+    }
+    option:disabled { color: #777; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>Ancient Cost Calculator <span class="help" onclick="openHelp()">?</span></h1>
+
+    <label>Holy Price
+      <input id="holy" type="number" value="6" step="any">
+    </label>
+
+    <label>Mag Holy Price
+      <input id="mag" type="number" value="18" step="any">
+    </label>
+
+    <label>Ancient Price
+      <input id="anc" type="number" value="1" step="any">
+    </label>
+
+    <label>Reset Price
+      <input id="res" type="number" value="3" step="any">
+    </label>
+
+    <label>Ancient Type
+      <select id="prob">
+        <option value="0.15">15%</option>
+        <option value="0.2">20%</option>
+      </select>
+    </label>
+
+    <label>Desired Number of Scrolls
+      <select id="scroll"></select>
+    </label>
+
+    <label>
+      <input id="reset" type="checkbox" checked>
+      Reset Allowed
+    </label>
+
+    <button onclick="run()">Calculate</button>
+  </div>
+
+  <div class="card output-card" id="outputCard" style="display:none;">
+    <div id="output"></div>
+  </div>
+</div>
+
+<div class="modal" id="helpModal" onclick="closeHelp()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <p>If you experience any issues with this site, or find any mistakes, contact <b>@Leviikori</b> on Discord.</p>
+    <p>Documentation for the Maths behind this calculator is coming soon.</p>
+    <button onclick="closeHelp()">Close</button>
+  </div>
+</div>
+
+<div class="footer">Brought to you by ⭐</div>
+
+<script>
+function openHelp(){ document.getElementById('helpModal').style.display='flex'; }
+function closeHelp(){ document.getElementById('helpModal').style.display='none'; }
+
+// ---- math + logic unchanged from previous version ----
+function nCk(n,k){ if(k<0||k>n) return 0; if(k===0||k===n) return 1; if(k>n/2) k=n-k; let r=1; for(let i=1;i<=k;i++) r=r*(n-i+1)/i; return r; }
+function Bin(p,n,k){ if(k<0||k>n) return 0; return nCk(n,k)*Math.pow(p,k)*Math.pow(1-p,n-k); }
+function BinCum(p,n,x,up){ let s=0; if(up) for(let i=x;i<=n;i++) s+=Bin(p,n,i); else for(let i=0;i<=x;i++) s+=Bin(p,n,i); return s; }
+function ExpectedResets(p,scroll,target){ const pr=BinCum(p,scroll,target,true); return pr===0?0:(1/pr)-1; }
+function ExpectedAncients(p,scroll,target){ if(scroll===0) return scroll; let sum=0, psum=0; const k=scroll-target+1; for(let i=0;i<=scroll-1;i++){ const prob=Bin(p,i-1,i-k)*Math.pow(1-p,i-k); psum+=prob; sum+=i*prob; } sum+=(1-psum)*scroll; return sum; }
+
+const Expectations = {
+  "0.15":{1:{1:6.666666666667},2:{1:6.126126126126,2:3.603603603604},3:{1:6.152916765,2:3.036272424,3:2.591512796},4:{1:6.153266715,2:3.075933457,3:1.997740927,4:2.092077564},5:{1:6.153135825,2:3.076895138,3:2.049660624,4:1.472345847,5:1.797608394},6:{1:6.153127129,2:3.076589653,3:2.051670737,4:1.535737883,5:1.152519863,6:1.605521751},7:{1:6.153129067,2:3.076557722,3:2.05112989,4:1.539310802,5:1.226445556,6:0.935790988,7:1.471837324}},
+  "0.2":{1:{1:5},2:{1:4.444444444444445,2:2.7777777777777777},3:{1:4.480874316939892,2:2.185792349726778,3:2.049180327868852},4:{1:4.481762850415397,2:2.239104358256701,3:1.421653560797904,4:1.69376693769377},5:{1:4.481450320078227,2:2.241506485882037,3:1.490334111212463,4:1.031899895391148,5:1.487386958591147},6:{1:4.481410868636093,2:2.240823788644454,3:1.495247920238135,4:1.114065226640093,5:0.7926537838133415,6:1.355277994622258},7:{1:4.481417648750376,2:2.240685093975195,3:1.494113683545069,4:1.122570176871667,5:0.8861492111731296,6:0.6293796773911886,7:1.26536661237802}}
+};
+
+function RealisedTargetCost(holy,mag,anc,p,remaining){ if(remaining<=0) return 0; const row=Expectations[p.toString()][remaining]; let s=0; for(let i=1;i<=remaining;i++) s+=row[i]*(i*anc+Math.min(mag,i*holy)); return s; }
+
+function MinimiseStrategy(holy,mag,anc,res,p,scroll,resetAllowed){ if(p!==0.15&&p!==0.2) return null; if(resetAllowed){ if(scroll!==3&&scroll!==7) return null; const ResetStrats={}; for(let target=0;target<=scroll;target++){ const phase1=(res+ExpectedAncients(p,scroll,target)*anc)*(ExpectedResets(p,scroll,target)+1)-res; let phase2=0; for(let realised=target;realised<=scroll;realised++){ const rp=Bin(p,scroll,realised)/BinCum(p,scroll,target,true); phase2+=rp*RealisedTargetCost(holy,mag,anc,p,scroll-realised); } ResetStrats[target]=phase1+phase2; } let minCost=Infinity,opt=0; for(const k in ResetStrats){ if(ResetStrats[k]<minCost){ minCost=ResetStrats[k]; opt=+k; } } return {minCost,optTarget:opt}; }
+  const cost=RealisedTargetCost(holy,mag,anc,p,scroll)-Math.min(mag,scroll*holy);
+  return {minCost:cost,optTarget:0}; }
+
+function updateScrollOptions(){ const sel=scrollEl; sel.innerHTML=''; const resetAllowed=resetEl.checked; for(let i=1;i<=7;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; if(resetAllowed && ![3,7].includes(i)){ o.disabled=true; } sel.appendChild(o); } if(resetAllowed) sel.value='7'; }
+
+function run(){ const holy=+holyEl.value, mag=+magEl.value, anc=+ancEl.value, res=+resEl.value, p=+probEl.value, scroll=+scrollEl.value, resetAllowed=resetEl.checked;
+  const out=document.getElementById('output'); const card=document.getElementById('outputCard');
+  const result=MinimiseStrategy(holy,mag,anc,res,p,scroll,resetAllowed);
+  if(!result){ out.textContent='No result for given inputs.'; card.style.display='block'; return; }
+  const cutoff=Math.ceil(mag/holy);
+  let html=`<p><b>Average Cost (Optimal):</b> ${result.minCost.toFixed(4)}g</p><p><b>Optimal Strategy:</b></p>`;
+  if(result.optTarget===0){ html+=`<p>(1) Use Ancient scrolls until you run out of attempts. If you still have ${cutoff} or more failed upgrade slots, use a Mag Holy. Otherwise, use Holies to clear all failed attempts.</p><p>(2) Repeat until fully Anciented.</p>`; }
+  else{ html+=`<p>(1) Use Ancient scrolls until you run out of attempts. If you got ${result.optTarget} or more successes then move onto step (2). Otherwise, use a Reset Scroll and start again.</p><p>(2) If you still have ${cutoff} or more failed upgrade slots, use a Mag Holy. Otherwise, use Holies to clear all failed attempts. Use Ancient scrolls until you run out of attempts.</p><p>(3) Repeat (2) until fully Anciented.</p>`; }
+  out.innerHTML=html; card.style.display='block'; }
+
+const holyEl=document.getElementById('holy');
+const magEl=document.getElementById('mag');
+const ancEl=document.getElementById('anc');
+const resEl=document.getElementById('res');
+const probEl=document.getElementById('prob');
+const scrollEl=document.getElementById('scroll');
+const resetEl=document.getElementById('reset');
+resetEl.addEventListener('change',updateScrollOptions);
+updateScrollOptions();
+</script>
+</body>
+</html>
